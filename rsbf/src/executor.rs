@@ -99,7 +99,7 @@ impl Executor {
                     output.write(*data.get(data_index));
                 }
                 Instruction::ReadInput => {
-                    *data.get(data_index) = input.read().map_err(|err| super::Error::Input(err))?;
+                    *data.get(data_index) = input.read().map_err(super::Error::Input)?;
                 }
                 Instruction::StartLoop => {
                     if *data.get(data_index) == 0 {
@@ -120,10 +120,21 @@ impl Executor {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
-    #[error("Unmatched end loop at offset {0}")]
     UnmatchedLoopEnd(usize),
-    #[error("Unmatched start loop at offset {0}")]
     UnmatchedLoopStart(usize),
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnmatchedLoopEnd(offset) => write!(f, "Unmatched end loop at offset {}", offset),
+            Self::UnmatchedLoopStart(offset) => {
+                write!(f, "Unmatched start loop at offset {}", offset)
+            }
+        }
+    }
 }
