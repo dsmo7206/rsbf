@@ -2,13 +2,14 @@ use crate::{
     data::Data,
     io::{Input, Output},
 };
+use itertools::Itertools;
 use std::collections::HashMap;
 
 enum Instruction {
-    Right,
-    Left,
-    Increment,
-    Decrement,
+    Right(i32),
+    Left(i32),
+    Increment(u8),
+    Decrement(u8),
     WriteOutput,
     ReadInput,
     StartLoop,
@@ -22,30 +23,36 @@ pub struct Executor {
 
 impl Executor {
     pub fn new(code: &[u8]) -> Result<Self, Error> {
+        let mut index = 0;
         let mut starts = vec![];
         let mut instructions = Vec::with_capacity(code.len());
         let mut loop_targets = HashMap::new();
 
-        for (index, ch) in code.iter().enumerate() {
+        for (repeats, ch) in code.iter().dedup_with_count() {
             match *ch {
-                b'>' => instructions.push(Instruction::Right),
-                b'<' => instructions.push(Instruction::Left),
-                b'+' => instructions.push(Instruction::Increment),
-                b'-' => instructions.push(Instruction::Decrement),
-                b'.' => instructions.push(Instruction::WriteOutput),
-                b',' => instructions.push(Instruction::ReadInput),
-                b'[' => {
+                b'>' => instructions.push(Instruction::Right(repeats as i32)),
+                b'<' => instructions.push(Instruction::Left(repeats as i32)),
+                b'+' => instructions.push(Instruction::Increment(repeats as u8)),
+                b'-' => instructions.push(Instruction::Decrement(repeats as u8)),
+                b'.' => (0..repeats).for_each(|_| instructions.push(Instruction::WriteOutput)),
+                b',' => (0..repeats).for_each(|_| instructions.push(Instruction::ReadInput)),
+                b'[' => (0..repeats).for_each(|_| {
                     starts.push(instructions.len());
                     instructions.push(Instruction::StartLoop);
-                }
+                }),
                 b']' => {
-                    let start = starts.pop().ok_or_else(|| Error::UnmatchedLoopEnd(index))?;
-                    loop_targets.insert(start, instructions.len());
-                    loop_targets.insert(instructions.len(), start);
-                    instructions.push(Instruction::EndLoop);
+                    for i in 0..repeats {
+                        let start = starts
+                            .pop()
+                            .ok_or_else(|| Error::UnmatchedLoopEnd(index + i))?;
+                        loop_targets.insert(start, instructions.len());
+                        loop_targets.insert(instructions.len(), start);
+                        instructions.push(Instruction::EndLoop);
+                    }
                 }
                 _ => {} // Some sort of comment - ignore
             };
+            index += repeats;
         }
 
         if let Some(start) = starts.pop() {
@@ -75,17 +82,17 @@ impl Executor {
 
         while inst_index < self.instructions.len() {
             match self.instructions[inst_index] {
-                Instruction::Right => {
-                    data_index += 1;
+                Instruction::Right(n) => {
+                    data_index += n;
                 }
-                Instruction::Left => {
-                    data_index -= 1;
+                Instruction::Left(n) => {
+                    data_index -= n;
                 }
-                Instruction::Increment => {
-                    *data.get(data_index) += 1;
+                Instruction::Increment(n) => {
+                    *data.get(data_index) += n;
                 }
-                Instruction::Decrement => {
-                    *data.get(data_index) -= 1;
+                Instruction::Decrement(n) => {
+                    *data.get(data_index) -= n;
                 }
                 Instruction::WriteOutput => {
                     output.write(*data.get(data_index));
