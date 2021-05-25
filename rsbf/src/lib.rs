@@ -9,7 +9,6 @@ pub use io::{Input, Output, StdinError, StdinInput, StdoutOutput};
 use std::error::Error as StdError;
 
 pub fn run_simple(code: &[u8]) -> Result<usize, Error<StdinError>> {
-    //let mut data = ResizableData::new();
     let mut data = data::ArrayData::new();
     let mut input = StdinInput::new();
     let mut output = StdoutOutput {};
