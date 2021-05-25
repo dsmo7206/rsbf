@@ -17,17 +17,14 @@ enum Instruction {
 
 pub struct Executor {
     instructions: Vec<Instruction>,
-    loop_start_to_end: HashMap<usize, usize>,
-    loop_end_to_start: HashMap<usize, usize>,
+    loop_targets: HashMap<usize, usize>,
 }
 
 impl Executor {
     pub fn new(code: &[u8]) -> Result<Self, Error> {
         let mut starts = vec![];
-
         let mut instructions = Vec::with_capacity(code.len());
-        let mut loop_start_to_end = HashMap::new();
-        let mut loop_end_to_start = HashMap::new();
+        let mut loop_targets = HashMap::new();
 
         for (index, ch) in code.iter().enumerate() {
             match *ch {
@@ -43,8 +40,8 @@ impl Executor {
                 }
                 b']' => {
                     let start = starts.pop().ok_or_else(|| Error::UnmatchedLoopEnd(index))?;
-                    loop_start_to_end.insert(start, instructions.len());
-                    loop_end_to_start.insert(instructions.len(), start);
+                    loop_targets.insert(start, instructions.len());
+                    loop_targets.insert(instructions.len(), start);
                     instructions.push(Instruction::EndLoop);
                 }
                 _ => {} // Some sort of comment - ignore
@@ -56,8 +53,7 @@ impl Executor {
         } else {
             Ok(Self {
                 instructions,
-                loop_start_to_end,
-                loop_end_to_start,
+                loop_targets,
             })
         }
     }
@@ -67,7 +63,7 @@ impl Executor {
         data: &mut D,
         input: &mut I,
         output: &mut O,
-    ) -> Result<(), super::Error<I::ErrorType>>
+    ) -> Result<usize, super::Error<I::ErrorType>>
     where
         D: Data,
         I: Input,
@@ -75,6 +71,7 @@ impl Executor {
     {
         let mut data_index = 0i32;
         let mut inst_index = 0;
+        let mut num_insts = 0;
 
         while inst_index < self.instructions.len() {
             match self.instructions[inst_index] {
@@ -98,19 +95,20 @@ impl Executor {
                 }
                 Instruction::StartLoop => {
                     if *data.get(data_index) == 0 {
-                        inst_index = *self.loop_start_to_end.get(&inst_index).unwrap();
+                        inst_index = *self.loop_targets.get(&inst_index).unwrap();
                     }
                 }
                 Instruction::EndLoop => {
                     if *data.get(data_index) != 0 {
-                        inst_index = *self.loop_end_to_start.get(&inst_index).unwrap();
+                        inst_index = *self.loop_targets.get(&inst_index).unwrap();
                     }
                 }
             }
             inst_index += 1;
+            num_insts += 1;
         }
 
-        Ok(())
+        Ok(num_insts)
     }
 }
 

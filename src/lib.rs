@@ -6,15 +6,13 @@ pub use data::{Data, ResizableData};
 pub use executor::Executor;
 pub use io::{Input, Output, StdinError, StdinInput, StdoutOutput};
 
-pub fn run_simple(code: &[u8]) -> Result<(), Error<StdinError>> {
+pub fn run_simple(code: &[u8]) -> Result<usize, Error<StdinError>> {
     let mut data = ResizableData::new();
     let mut input = StdinInput::new();
     let mut output = StdoutOutput {};
     let executor = Executor::new(code).map_err(|err| Error::Executor(err))?;
 
-    executor.run(&mut data, &mut input, &mut output)?;
-
-    Ok(())
+    executor.run(&mut data, &mut input, &mut output)
 }
 
 #[derive(thiserror::Error, Debug)]

@@ -2,7 +2,7 @@ pub trait Data {
     fn get(&mut self, index: i32) -> &mut u8;
 }
 
-const DATA_EXTEND_SIZE: usize = 1024;
+const RESIZABLE_DATA_EXTEND_SIZE: usize = 1024;
 
 pub struct ResizableData {
     pos: Vec<u8>,
@@ -27,7 +27,7 @@ impl Data for ResizableData {
         };
 
         if index >= v.len() {
-            v.resize(index + DATA_EXTEND_SIZE, 0);
+            v.resize(index + RESIZABLE_DATA_EXTEND_SIZE, 0);
         }
 
         &mut v[index]
