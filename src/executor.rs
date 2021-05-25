@@ -3,7 +3,6 @@ use crate::{
     io::{Input, Output},
 };
 use itertools::Itertools;
-use std::collections::HashMap;
 
 enum Instruction {
     Right(i32),
@@ -18,7 +17,7 @@ enum Instruction {
 
 pub struct Executor {
     instructions: Vec<Instruction>,
-    loop_targets: HashMap<usize, usize>,
+    loop_targets: Vec<usize>,
 }
 
 impl Executor {
@@ -26,7 +25,7 @@ impl Executor {
         let mut index = 0;
         let mut starts = vec![];
         let mut instructions = Vec::with_capacity(code.len());
-        let mut loop_targets = HashMap::new();
+        let mut loop_targets = vec![0; code.len()];
 
         for (repeats, ch) in code.iter().dedup_with_count() {
             match *ch {
@@ -45,8 +44,8 @@ impl Executor {
                         let start = starts
                             .pop()
                             .ok_or_else(|| Error::UnmatchedLoopEnd(index + i))?;
-                        loop_targets.insert(start, instructions.len());
-                        loop_targets.insert(instructions.len(), start);
+                        loop_targets[start] = instructions.len();
+                        loop_targets[instructions.len()] = start;
                         instructions.push(Instruction::EndLoop);
                     }
                 }
@@ -54,6 +53,8 @@ impl Executor {
             };
             index += repeats;
         }
+
+        loop_targets.truncate(instructions.len());
 
         if let Some(start) = starts.pop() {
             Err(Error::UnmatchedLoopStart(start))
@@ -102,12 +103,12 @@ impl Executor {
                 }
                 Instruction::StartLoop => {
                     if *data.get(data_index) == 0 {
-                        inst_index = *self.loop_targets.get(&inst_index).unwrap();
+                        inst_index = self.loop_targets[inst_index];
                     }
                 }
                 Instruction::EndLoop => {
                     if *data.get(data_index) != 0 {
-                        inst_index = *self.loop_targets.get(&inst_index).unwrap();
+                        inst_index = self.loop_targets[inst_index];
                     }
                 }
             }
